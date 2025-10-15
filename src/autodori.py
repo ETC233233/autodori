@@ -50,12 +50,12 @@ from util import *
 
 MIN_LIVEBOOST = 1
 LIVEMODE = "freelive"
-DIFFICULTY = "hard"
+DIFFICULTY = "special"
 OFFSET = {"up": 0, "down": 0, "move": 0, "wait": 0.0, "interval": 0.0}
 PHOTOGATE_LATENCY = 30
 DEFAULT_MOVE_SLICE_SIZE = 10
 MAX_FAILED_TIMES = 10
-CMD_SLICE_SIZE = 100
+CMD_SLICE_SIZE = 40 # 或更小
 
 config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 maaresource = Resource()
@@ -378,12 +378,21 @@ def play_song():
     def _adjust_offset():
         global callback_data
         total_cost = 0.0
+        max_ratio = 0.2  # 单次最大调整比例（如20%）
         for type_ in ["up", "down", "move", "wait", "interval"]:
             type_data = callback_data[type_]
             total = type_data["total"]
             if total != 0:
-                total_cost += type_data["total_offset"] - OFFSET[type_] * total
-                OFFSET[type_] = type_data["total_offset"] / total
+                new_offset = type_data["total_offset"] / total
+                # 平滑调整，限制单次变化幅度
+                old_offset = OFFSET[type_]
+                if old_offset > 0:
+                    delta = new_offset - old_offset
+                    max_delta = abs(old_offset * max_ratio)
+                    if abs(delta) > max_delta:
+                        new_offset = old_offset + max_delta * (1 if delta > 0 else -1)
+                OFFSET[type_] = new_offset
+                total_cost += type_data["total_offset"] - old_offset * total
 
         current_chart._a2c_offset += total_cost
         logging.debug("Adjust offset: {}".format(OFFSET))
@@ -677,6 +686,27 @@ def check_update():
         logging.error("failed to check for updates: {}".format(e))
 
 
+def select_song_by_fuzzy(name, topn=5):
+    """模糊匹配歌曲名并让用户选择"""
+    matches = fzwzprocess.extract(name, list(all_song_name_indexes.keys()), limit=topn)
+    print("找到以下相似歌曲：")
+    for idx, (title, score) in enumerate(matches):
+        print(f"{idx}: {title} (ID: {all_song_name_indexes[title]}, 匹配度: {score})")
+    while True:
+        try:
+            sel = input("请输入要选择的歌曲序号（或直接回车取消）：")
+            if sel.strip() == "":
+                print("已取消歌曲选择。")
+                return None
+            sel = int(sel)
+            if 0 <= sel < len(matches):
+                return matches[sel][0]
+            else:
+                print("输入序号超出范围，请重新输入。")
+        except Exception:
+            print("输入无效，请输入数字序号。")
+
+
 def main():
     configure_log()
 
@@ -715,6 +745,12 @@ def main():
         action="store_true",
         help="Specify if skip version check",
     )
+    parser.add_argument(
+        "--song",
+        type=str,
+        help="指定要直接打的歌曲名（精确匹配 Bestdori 歌曲名）",
+        default=None,
+    )
     args = parser.parse_args()
 
     if args.mode == "main":
@@ -733,6 +769,18 @@ def main():
     MIN_LIVEBOOST = args.liveboost
     init_maa()
     init_player_and_mnt()
+
+    if args.song:
+        # 先模糊匹配并让用户选择
+        selected_song = select_song_by_fuzzy(args.song)
+        if selected_song is None:
+            print("未选择歌曲，程序退出。")
+            sys.exit(0)
+        save_song(selected_song)
+        play_song()
+        mnt.stop()
+        logging.debug("Ready to exit")
+        sys.exit()
 
     maatasker.post_task(entry, _get_override_pipeline()).wait().get()
 

@@ -186,6 +186,10 @@ json.dump(
 # else:
 #     raise FileNotFoundError("syc.bat file not found")
 
+# 检查 OCR 模型文件是否存在
+print("det.onnx exists:", os.path.exists("assets/resource/model/ocr/det.onnx"))
+print("rec.onnx exists:", os.path.exists("assets/resource/model/ocr/rec.onnx"))
+
 # 压缩 dist 文件夹为 zip 文件，并保存在 dist 目录中
 zip_filepath = os.path.join(dist_dir, ZIP_FILENAME)
 
