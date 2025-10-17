@@ -2,32 +2,16 @@
 
 # autodori  
 
-邦多利小助手 | 📘 [English Version](./README.en.md)
-
-![Pipeline](https://img.shields.io/badge/Pipeline-%23454545?logo=paddypower&logoColor=%23FFFFFF)  ![python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)  
-
+邦多利小助手 非官方二改版本
 </div>
 
-## ✨ 功能
+## 二改作者说明！
 
-- [x] 自动启动游戏、自动清火
-- [x] Windows、Mumu、MumuV5、雷电模拟器兼容
-- [x] 超低性能开销、低延迟、高精度
-- [x] 国服可用
-- [ ] 自动收取奖励、自动每日三抽
-- [ ] Linux和Mac兼容、其它模拟器兼容（等待其它模拟器实现IPCAPI）兼容
-- [ ] 更高的精度和性能优化
-- [ ] 日服和全球服支持
-- [x] 战绩可查！👇
-
-![ ](./docs/achievements/六兆年.png)  
-*SP 六兆年と一夜物語 AP*
-
-![ ](./docs/achievements/火花.png)  
-*EX ヒバナ-Reloaded- AP*
-
-![ ](./docs/achievements/SENSENFUKOKU.png)  
-*EX SENSENFUKOKU AP*
+请遵守许可证协议！本程序为二创作品！
+由于运行原理的缺陷和性能问题，可能后期会推翻原版本逻辑进行重写
+目前旨在原代码基础上修复一些个人平常遇到的问题并进行扩展功能加强与性能优化
+不支持作为任何盈利行为使用！
+在协力模式下禁止使用该程序！
 
 ## 🛠 使用方法
 
