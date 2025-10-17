@@ -74,7 +74,7 @@ add_data_param2 = f"{maa_bin_path2}{os.pathsep}MaaAgentBinary"
 # 下载 minitouch.zip 并解压
 def download_and_extract_minitouch():
     # GitHub 最新 release 页面
-    url = "https://github.com/EvATive7/minitouch/releases/latest/download/minitouch.zip"
+    url = "https://gh-proxy.com/https://github.com/EvATive7/minitouch/releases/latest/download/minitouch.zip"
 
     # 下载文件
     print("Downloading minitouch.zip...")
@@ -190,29 +190,4 @@ json.dump(
 print("det.onnx exists:", os.path.exists("assets/resource/model/ocr/det.onnx"))
 print("rec.onnx exists:", os.path.exists("assets/resource/model/ocr/rec.onnx"))
 
-# 压缩 dist 文件夹为 zip 文件，并保存在 dist 目录中
-zip_filepath = os.path.join(dist_dir, ZIP_FILENAME)
-
-with zipfile.ZipFile(zip_filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-    for root, dirs, files in os.walk(dist_dir):
-        for file in files:
-            # 获取文件的绝对路径并相对路径
-            file_path = os.path.join(root, file)
-            # 跳过刚生成的压缩包
-            if file == ZIP_FILENAME:
-                continue
-            arcname = os.path.relpath(file_path, dist_dir)
-            zipf.write(file_path, arcname)
-
-# 删除 dist 文件夹中的所有文件和文件夹，保留压缩包
-for root, dirs, files in os.walk(dist_dir):
-    for file in files:
-        file_path = os.path.join(root, file)
-        # 不删除生成的压缩包
-        if file != ZIP_FILENAME:
-            os.remove(file_path)
-    for dir in dirs:
-        shutil.rmtree(os.path.join(root, dir), ignore_errors=True)
-
-
-print(f"Packaging and compression completed: {zip_filepath}")
+print(f"Packaging and compression completed")

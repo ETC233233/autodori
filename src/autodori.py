@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Optional, Union
 
+import debug_window
 import requests
 
 data_path = Path("data")
@@ -57,6 +58,17 @@ DEFAULT_MOVE_SLICE_SIZE = 10
 MAX_FAILED_TIMES = 10
 CMD_SLICE_SIZE = 40 # 或更小
 
+debug_data = {
+    "song_name": "",
+    "current_task": "",
+    "remaining_liveboost": "",
+    "play_failed_times": 0,
+    "offset": OFFSET.copy(),
+    "status": "初始化中",
+    "last_update": ""
+}
+debug_data_lock = threading.Lock()
+
 config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 maaresource = Resource()
 maatasker = Tasker()
@@ -95,6 +107,16 @@ def reset_callback_data():
 
 reset_callback_data()
 
+def update_debug_data(**kwargs):
+    """更新调试数据"""
+    global debug_data
+    with debug_data_lock:
+        for key, value in kwargs.items():
+            if key in debug_data:
+                debug_data[key] = value
+        debug_data["last_update"] = datetime.datetime.now().strftime("%H:%M:%S")
+        debug_data["play_failed_times"] = play_failed_times
+        debug_data["offset"] = OFFSET.copy()
 
 def check_song_available(name, id_, difficulty):
     if name.startswith("[FULL]"):
@@ -191,6 +213,7 @@ class LiveBoostEnoughRecognition(CustomRecognition):
             live_boost = -1
 
         logging.debug("Live boost: {}".format(live_boost))
+        update_debug_data(remaining_liveboost=str(live_boost))
         return CustomRecognition.AnalyzeResult(roi, str(live_boost))
 
 
@@ -300,6 +323,7 @@ class SavePlayResult(CustomAction):
 class Play(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg):
         try:
+            update_debug_data(current_task="打歌中", status="正在打歌")
             play_song()
             return CustomAction.RunResult(True)
         except Exception as e:
@@ -311,10 +335,11 @@ class Play(CustomAction):
 class SaveSong(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg):
         name: CustomRecognitionResult = argv.reco_detail.best_result.detail
+        update_debug_data(current_task="保存歌曲信息", status="识别歌曲")
         save_song(name)
         return CustomAction.RunResult(True)
 
-
+                           
 def fuzzy_match_song(name):
     return fzwzprocess.extractOne(name, list(all_song_name_indexes.keys()))
 
@@ -359,6 +384,7 @@ def save_song(name):
     current_chart.actions_to_MNTcmd(
         (mnt.max_x, mnt.max_y), current_orientation, OFFSET, CMD_SLICE_SIZE
     )
+    update_debug_data(song_name=name, current_task="歌曲准备完成")
     logging.debug("Save song: {}".format(name))
 
 
@@ -716,7 +742,7 @@ def main():
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["main"],
+        choices=["main","debug"],
         help="Specify the mode to run",
         default="main",
     )
@@ -753,7 +779,7 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.mode == "main":
+    if args.mode in ["main", "debug"]:
         entry = "main"
     else:
         sys.exit(1)
@@ -767,11 +793,46 @@ def main():
     DIFFICULTY = args.difficulty
     LIVEMODE = args.livemode
     MIN_LIVEBOOST = args.liveboost
+    # 在初始化前更新状态
+    update_debug_data(status="初始化中", current_task="启动程序")
+
+# 启动debug窗口（如果是指定debug模式）
+    if args.mode == "debug":
+        logging.info("🎵 正在启动Debug模式...")
+    
+    try:
+        # 初始化debug数据
+        update_debug_data(
+            song_name="等待识别",
+            current_task="初始化程序",
+            status="启动中", 
+            remaining_liveboost="检测中",
+            last_update=datetime.datetime.now().strftime("%H:%M:%S")
+        )
+        
+        # 启动debug窗口线程
+        debug_thread = threading.Thread(
+            target=debug_window.start_debug_window, 
+            args=(debug_data, debug_data_lock, cmd_log_list, cmd_log_list_lock),
+            daemon=False  # 非守护线程，确保主程序不会在窗口运行时退出
+        )
+        debug_thread.start()
+        
+        # 给窗口一些时间初始化
+        time.sleep(2)
+        logging.info("✅ Debug窗口已启动")
+        
+    except Exception as e:
+        logging.error(f"❌ 启动Debug窗口失败: {e}")
+
+    update_debug_data(status="初始化MAA", current_task="连接设备")
     init_maa()
+    update_debug_data(status="初始化播放器", current_task="初始化MNT")
     init_player_and_mnt()
 
     if args.song:
         # 先模糊匹配并让用户选择
+        update_debug_data(current_task="选择歌曲")
         selected_song = select_song_by_fuzzy(args.song)
         if selected_song is None:
             print("未选择歌曲，程序退出。")
@@ -782,6 +843,7 @@ def main():
         logging.debug("Ready to exit")
         sys.exit()
 
+    update_debug_data(status="开始执行任务", current_task="启动MAA任务")
     maatasker.post_task(entry, _get_override_pipeline()).wait().get()
 
     mnt.stop()
